@@ -1,0 +1,145 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <time.h>
+#include <ncurses.h>
+
+#define ROWS 20
+#define COLS 40
+#define PADDLE_LEN 5
+#define INITIAL_BALL_X COLS / 2
+#define INITIAL_BALL_Y ROWS - 2
+#define INITIAL_PADDLE_X (COLS - PADDLE_LEN) / 2
+#define INITIAL_PADDLE_Y ROWS - 1
+#define INITIAL_BALL_VX 1
+#define INITIAL_BALL_VY -1
+
+// Function prototypes
+void initialize_game();
+void draw_game();
+void move_paddle(int direction);
+void move_ball();
+void check_collision();
+void update_game();
+bool is_game_over();
+
+// Global variables
+char game_board[ROWS][COLS];
+int paddle_x, paddle_y;
+int ball_x, ball_y;
+int ball_vx, ball_vy;
+bool game_over;
+
+int main() {
+    initialize_game();
+
+    while (!game_over) {
+        draw_game();
+        update_game();
+        usleep(50000); // 50 ms delay
+    }
+
+    endwin(); // End ncurses mode
+    printf("Game Over!\n");
+    return 0;
+}
+
+void initialize_game() {
+    srand(time(NULL));
+    initscr(); // Initialize ncurses mode
+    noecho(); // Don't echo user input
+    curs_set(FALSE); // Hide cursor
+
+    // Initialize game variables
+    paddle_x = INITIAL_PADDLE_X;
+    paddle_y = INITIAL_PADDLE_Y;
+    ball_x = INITIAL_BALL_X;
+    ball_y = INITIAL_BALL_Y;
+    ball_vx = INITIAL_BALL_VX;
+    ball_vy = INITIAL_BALL_VY;
+    game_over = false;
+
+    // Initialize game board
+    for (int i = 0; i < ROWS; ++i) {
+        for (int j = 0; j < COLS; ++j) {
+            game_board[i][j] = ' ';
+        }
+    }
+}
+
+void draw_game() {
+    clear(); // Clear screen
+
+    // Draw paddle
+    for (int i = 0; i < PADDLE_LEN; ++i) {
+        game_board[paddle_y][paddle_x + i] = '-';
+    }
+
+    // Draw ball
+    game_board[ball_y][ball_x] = 'O';
+
+    // Draw game board
+    for (int i = 0; i < ROWS; ++i) {
+        for (int j = 0; j < COLS; ++j) {
+            mvaddch(i, j, game_board[i][j]);
+        }
+    }
+
+    refresh(); // Refresh ncurses screen
+}
+
+void move_paddle(int direction) {
+    if (direction == -1 && paddle_x > 0) {
+        paddle_x--;
+    } else if (direction == 1 && paddle_x + PADDLE_LEN < COLS) {
+        paddle_x++;
+    }
+}
+
+void move_ball() {
+    ball_x += ball_vx;
+    ball_y += ball_vy;
+}
+
+void check_collision() {
+    // Check collision with walls
+    if (ball_x <= 0 || ball_x >= COLS - 1) {
+        ball_vx = -ball_vx;
+    }
+    if (ball_y <= 0) {
+        ball_vy = -ball_vy;
+    }
+
+    // Check collision with paddle
+    if (ball_y == paddle_y - 1 && ball_x >= paddle_x && ball_x < paddle_x + PADDLE_LEN) {
+        ball_vy = -ball_vy;
+    }
+
+    // Check if ball missed paddle
+    if (ball_y >= ROWS - 1) {
+        game_over = true;
+    }
+}
+
+void update_game() {
+    int ch = getch(); // Get user input
+    switch(ch) {
+        case KEY_LEFT:
+            move_paddle(-1);
+            break;
+        case KEY_RIGHT:
+            move_paddle(1);
+            break;
+        case 'q':
+            game_over = true;
+            break;
+    }
+
+    move_ball();
+    check_collision();
+}
+
+bool is_game_over() {
+    return game_over;
+}
